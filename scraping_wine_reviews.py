@@ -8,42 +8,11 @@ import urllib
 import requests
 
 
-# header = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 
-wine_varieties = ['Pinot Noir', 'Chardonnay', 'Cabernet Sauvignon', 'Red Blend', 'Bordeaux-style Red Blend', 'Shiraz/Syrah',
-'Sauvignon Blanc', 'Riesling', 'Sparkling', 'Merlot', 'White Blend', 'Sangiovese', 'Zinfandel', 'Rose',
-'Tempranillo', 'Pinot Grigio/Gris', 'Italian Red', 'Italian White', 'Nebbiolo', 'Portuguese Red', 'Malbec',
-'Rhone-style Red Blend', 'Cabernet Franc', 'Other White', 'Portuguese White', 'Other Red', 'Gruner Veltliner',
-'Viognier', 'Gamay']
-# Grenache(1,949)
-# Gewurztraminer(1,831)
-# Port Blend(1,612)
-# Petite Sirah(1,586)
-# Barbera(1,451)
-# Muscat(1,395)
-# Pinot Blanc(1,284)
-# Spanish White(1,256)
-# Chenin Blanc(1,194)
-# Albarino(1,138)
-# Carmenere(1,120)
-# Rhone-style White Blend(1,030)
-# Mourvedre(665)
-# Petit Verdot(519)
-# Spanish Red(516)
-# Torrontes(471)
-# Semillon(395)
-# Pinotage(366)
-# Roussanne(322)
-# Sherry(283)
-# Carignan(248)
-# Greek White(240)
-# Greek Red(221)
-# Marsanne(194)
-# White blend(42)
-# Madeira(33)
-# Bordeaux-style White Blend(7)
-# Other(7)
-# Portuguese red(3)
+wine_varieties = ['Pinot Noir', 'Chardonnay', 'Cabernet Sauvignon', 'Shiraz/Syrah', 'Sauvignon Blanc', 'Riesling', 
+'Merlot', 'Sangiovese', 'Zinfandel', 'Rose', 'Tempranillo', 'Pinot Grigio/Gris','Cabernet Franc', 'Gruner Veltliner',
+'Viognier', 'Barbera', 'Bordeaux-style', 'Zinfandel' ]
+
 
 
 def scrape_wine_links(base_url, min_page_number, max_page_number, proxies, header):
@@ -88,9 +57,9 @@ class WineInfoScraper:
 
 
     def get_wine_name(self, soup):
-        wine_name_raw = soup.find(class_='article-title')
+        wine_name_raw = soup.find(class_='title')
         wine_name_clean = wine_name_raw.text
-        print(wine_name_clean)
+        
         return wine_name_clean
 
 
@@ -162,27 +131,12 @@ class WineInfoScraper:
         return wine_info_dict
 
 
-    def get_reviewer_name(self, soup):
-        wine_reviewer_raw = soup.find(class_='taster')
-        wine_reviewer_clean = wine_reviewer_raw.text
-        wine_reviewer_info_list = wine_reviewer_clean.split('\n')
-        wine_reviewer_info_list_no_blanks = [w for w in wine_reviewer_info_list if len(w) > 1]
-        wine_reviewer_clean = wine_reviewer_info_list_no_blanks[0]
-        return wine_reviewer_clean
-
-
-    def get_reviewer_twitter_handle(self, soup):
-        wine_reviewer_twitter_raw = soup.find(class_='twitter-handle')
-        try:
-            wine_reviewer_twitter_clean = wine_reviewer_twitter_raw.text
-            return wine_reviewer_twitter_clean
-        except:
-            return None
 
 
     def scrape_all_info(self):
         wine_info_dict = {}
         wine_review_soup = self.get_soup_wine_page()
+   
 
         wine_info_dict['Name'] = self.get_wine_name(wine_review_soup)
         wine_info_dict['Vintage'] = self.get_vintage(wine_info_dict['Name'])
@@ -192,16 +146,15 @@ class WineInfoScraper:
         wine_info_dict.update(self.get_wine_info(wine_review_soup, primary_secondary='primary-info'))
         wine_info_dict.update(self.get_wine_info(wine_review_soup, primary_secondary='secondary-info'))
 
-        wine_info_dict['Reviewer'] = self.get_reviewer_name(wine_review_soup)
-        wine_info_dict['Reviewer Twitter Handle'] = self.get_reviewer_twitter_handle(wine_review_soup)
+   
 
         return wine_info_dict
 
 
-def mine_all_wine_info():
-    all_wine_links = scrape_wine_links(base_url='https://www.winemag.com/?s=&drink_type=wine&varietal=Zinfandel&page=',
+def mine_all_wine_info(max_page_number=700, wine_variety="Zinfandel"):
+    all_wine_links = scrape_wine_links(base_url=f'https://www.winemag.com/?s=&drink_type=wine&varietal={wine_variety}&page=',
                                        min_page_number=1,
-                                       max_page_number=700,
+                                       max_page_number=max_page_number,
                                        proxies={'http': 'http://user:pass@13.59.204.225:8080'},
                                        header={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'})
 
@@ -211,20 +164,28 @@ def mine_all_wine_info():
             scraper = WineInfoScraper(wine_page_to_mine=link, proxies={'http': 'http://user:pass@13.59.204.225:8080'}, header={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'})
             wine_info = scraper.scrape_all_info()
             all_wine_info.append(wine_info)
-        except:
+            
+        except Exception as e:
+            print(e)
             continue
         # sleep(5)
 
     full_wine_info_dataframe = pd.DataFrame(all_wine_info)
     full_wine_info_dataframe = full_wine_info_dataframe[['Alcohol', 'Appellation', 'Bottle Size', 'Category', 'Country',
-                                                         'Date Published', 'Description', 'Designation', 'Importer',
-                                                         'Name', 'Price', 'Province', 'Rating', 'Region', 'Reviewer',
-                                                         'Reviewer Twitter Handle', 'Subregion', 'User Avg Rating',
+                                                         'Date Published', 'Description', 'Designation',
+                                                         'Name', 'Price', 'Province', 'Rating', 'Region',
+                                                        'Subregion', 'User Avg Rating',
                                                          'Variety', 'Vintage', 'Winery']]
+    wine_variety= wine_variety.replace("/", "_")
+    full_wine_info_dataframe.to_csv(f'data/all_scraped_wine_info_{wine_variety}.csv')
 
-    full_wine_info_dataframe.to_csv('data/all_scraped_wine_info_zinfandel.csv')
-    print(full_wine_info_dataframe)
+def get_all_varieties(wine_varieties=None):
+    for wv in wine_varieties:
+        print(f"attempting_wv: {wv}")
+        mine_all_wine_info(max_page_number=100, wine_variety=wv)
 
 
 if __name__ == '__main__':
-    mine_all_wine_info()
+    get_all_varieties(wine_varieties=['Pinot Noir', 'Chardonnay', 'Cabernet Sauvignon', 'Shiraz/Syrah', 'Sauvignon Blanc', 'Riesling', 
+                                    'Merlot', 'Sangiovese', 'Zinfandel', 'Rose', 'Tempranillo', 'Pinot Grigio/Gris','Cabernet Franc', 
+                                    'Gruner',  'Veltliner', 'Viognier', 'Barbera', 'Bordeaux-style', 'Zinfandel'])
